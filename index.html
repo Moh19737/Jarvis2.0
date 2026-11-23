@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#050912"><meta name="mobile-web-app-capable" content="yes"><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-192.png"><title>Jarvis</title>
+<style>
+:root{--a:110,200,255;--b:255,180,84;--bg:#050912;--pan:rgba(10,20,36,.72);--line:rgba(var(--a),.3);--ice:rgb(var(--a));--tx:#e6f1fb;--dim:#8fa8c2}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--tx);font:300 16px/1.5 "Avenir Next","Helvetica Neue",system-ui,sans-serif}
+body{display:flex;flex-direction:column;overflow:hidden}
+a{color:var(--ice)}
+button,input{font:inherit;color:var(--tx);background:none;border:1px solid var(--line);border-radius:4px;padding:6px 12px}
+button{cursor:pointer}
+button:hover,button:focus-visible,input:focus-visible{border-color:var(--ice);outline:none}
+#stage{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 18px}
+#orb{--o:170px;width:var(--o);height:var(--o);flex:none;margin:70px 0 82px;border-radius:50%;cursor:pointer;transition:width .5s,height .5s}
+body:not(.active) #orb{--o:210px}
+#cap{min-width:0;width:min(640px,46vw)}
+#status{color:var(--dim);font-size:14px}
+#said{font-size:16px;line-height:1.4}
+#heard{color:var(--dim);font-size:14px;min-height:21px}
+#grid{flex:1;min-height:0;display:grid;gap:10px;padding:0 18px 10px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));grid-auto-rows:minmax(260px,1fr);overflow:auto}
+body:not(.active) #grid{display:none}
+.tile{background:var(--pan);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;min-height:0;overflow:hidden;transition:border-color .3s,box-shadow .3s}
+.tile.spot{border-color:var(--ice);box-shadow:0 0 0 1px var(--ice),0 0 20px rgba(var(--a),.3)}
+.tile.big{grid-column:1/-1;grid-row:span 2}
+.th{display:flex;justify-content:space-between;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);color:var(--dim);font-size:13px}
+.th button{padding:1px 8px;font-size:12px;margin-left:6px}
+.tb{flex:1;min-height:0;overflow:auto;padding:10px 12px}
+.tb.f{padding:0;overflow:hidden}
+.tb p{margin:0 0 .7em}
+.tb>button{margin:0 6px 6px 0}
+.tb small{color:var(--dim)}
+iframe{width:100%;height:100%;border:0;background:#fff}
+.ig{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.ig img{width:100%;height:110px;object-fit:cover;border-radius:3px;display:block}
+.ig .v{text-align:left;padding:0;border:0;display:block}
+.ig .v img{height:90px}
+.ig .v b{display:block;font-weight:400;font-size:13px;line-height:1.3;margin-top:4px}
+footer{display:flex;background:rgba(5,9,18,.55);gap:8px;padding:10px 18px 14px;border-top:1px solid var(--line);flex:none}
+footer input{flex:1;min-width:0}
+#bg{position:fixed;inset:0;width:100%;height:100%;z-index:0}
+#stage,footer{position:relative;z-index:1}
+#hud{position:fixed;top:12px;right:18px;z-index:2;text-align:right;color:var(--dim);font-size:13px;line-height:1.4}
+#hud b{font-size:22px;font-weight:300;color:var(--tx)}
+dialog{background:#0f1b2f;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:18px;width:min(440px,92vw)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog h2{margin:0 0 4px;font-weight:300}
+dialog label{display:block;margin:12px 0 4px;color:var(--dim);font-size:13px}
+dialog input{width:100%}
+#sw{display:flex;gap:10px}
+#sw button{width:34px;height:34px;border-radius:50%;padding:0}
+.row{flex-wrap:wrap;display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+#dmsg{color:var(--dim);font-size:13px;min-height:19px}
+html{color-scheme:dark}
+#grid{position:fixed;inset:0;z-index:1;pointer-events:none;display:block;overflow:hidden;padding:0}
+.tile{position:absolute;pointer-events:auto;border-radius:22px;min-width:240px;min-height:150px;resize:both;border-color:rgba(var(--a),.28);box-shadow:0 0 34px rgba(var(--a),.1),inset 0 0 40px rgba(var(--a),.05)}
+.tile.enter{animation:pop .55s cubic-bezier(.2,.8,.2,1) var(--d,0s) backwards}
+.tile::before,.tile::after{content:"";position:absolute;width:18px;height:18px;pointer-events:none;border:2px solid var(--ice);z-index:2}
+.tile::before{top:9px;left:9px;border-right:0;border-bottom:0;border-top-left-radius:10px}
+.tile::after{right:9px;bottom:9px;border-left:0;border-top:0;border-bottom-right-radius:10px}
+.tile.drag{backdrop-filter:none;background:rgba(10,20,36,.92);box-shadow:0 0 50px rgba(var(--a),.28)}
+.th{cursor:grab;touch-action:none;user-select:none;padding:9px 20px 7px}
+.tile.drag .th{cursor:grabbing}
+.nm::before{content:"";display:inline-block;width:7px;height:7px;margin-right:8px;border-radius:50%;background:var(--ice);box-shadow:0 0 8px var(--ice);animation:pulse 2s ease-in-out infinite}
+@keyframes pop{from{opacity:0;transform:scale(.9) translateY(16px)}}
+@keyframes fl{to{transform:translateY(-5px)}}
+@keyframes pulse{50%{opacity:.3}}
+.tb{padding:10px 18px 18px}
+.tb.f{padding:0}
+.ig{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
+.ig img{height:78px}
+#chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:min(640px,46vw);margin-top:14px;padding:6px;border-radius:20px;transition:box-shadow .3s}
+#chips.spot{box-shadow:0 0 22px rgba(var(--a),.35)}
+#chips button{border-radius:999px;background:rgba(10,20,36,.6)}
+@media(prefers-reduced-motion:reduce){.tile,.nm::before{animation:none!important}}
+dialog input[type=checkbox]{width:auto;margin-right:8px}
+dialog{max-height:90vh;overflow:auto}
+.tb{position:relative}
+.tb video{width:100%;height:100%;object-fit:cover;display:block}
+.tile.scan .tb::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--ice);box-shadow:0 0 14px var(--ice);animation:scan 1.3s linear infinite}
+@keyframes scan{to{top:100%}}
+dialog select{width:100%;font:inherit;color:var(--tx);background:#0f1b2f;border:1px solid var(--line);border-radius:4px;padding:6px 12px}
+
+/* ---------- v2: page scrolls, more life ---------- */
+html,body{height:auto}
+html{min-height:100%}
+body{display:flex;flex-direction:column;overflow-x:hidden;overflow-y:visible;min-height:100vh;min-height:100dvh;padding-bottom:70px}
+footer{position:fixed;left:0;right:0;bottom:0;z-index:3;backdrop-filter:blur(8px)}
+#grid{position:absolute;inset:0 auto auto 0;width:100%;height:0;overflow:visible;z-index:1;pointer-events:none}
+#orb{animation:bob 5s ease-in-out infinite alternate}
+@keyframes bob{to{transform:translateY(-7px)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}}
+#said{min-height:1.4em}
+#status{transition:color .4s}
+body[data-st=speak] #status{color:rgb(var(--b))}
+body[data-st=think] #status{color:var(--tx);animation:pulse 1.2s ease-in-out infinite}
+body[data-st=listen] #status{color:rgb(var(--a))}
+#chips button{animation:fadeUp .5s ease backwards;transition:transform .2s,box-shadow .2s,border-color .2s}
+#chips button:nth-child(2){animation-delay:.08s}#chips button:nth-child(3){animation-delay:.16s}#chips button:nth-child(4){animation-delay:.24s}#chips button:nth-child(5){animation-delay:.32s}
+#chips button:hover{transform:translateY(-2px);box-shadow:0 0 14px rgba(var(--a),.35)}
+.tb p{animation:fadeUp .5s ease backwards}
+.tb p:nth-child(2){animation-delay:.06s}.tb p:nth-child(3){animation-delay:.12s}.tb p:nth-child(4){animation-delay:.18s}.tb p:nth-child(5){animation-delay:.24s}.tb p:nth-child(n+6){animation-delay:.3s}
+.ig>*{animation:fadeUp .45s ease backwards}
+.ig>*:nth-child(2){animation-delay:.04s}.ig>*:nth-child(3){animation-delay:.08s}.ig>*:nth-child(4){animation-delay:.12s}.ig>*:nth-child(5){animation-delay:.16s}.ig>*:nth-child(6){animation-delay:.2s}.ig>*:nth-child(n+7){animation-delay:.24s}
+.tile:hover{border-color:rgba(var(--a),.55)}
+@media(prefers-reduced-motion:reduce){#orb,#chips button,.tb p,.ig>*,body[data-st=think] #status{animation:none!important}}
+@media(max-width:760px){
+ body.active #stage{flex:none;justify-content:flex-start;padding-top:56px}
+ body.active #orb{--o:120px;margin:26px 0 38px}
+ body:not(.active) #orb{--o:170px;margin:60px 0 60px}
+ #cap,#chips{width:100%;max-width:100%}
+ #hud{font-size:11px;top:8px;right:12px}#hud b{font-size:16px}
+ #grid{position:relative;inset:auto;height:auto;display:flex;flex-direction:column;gap:12px;padding:0 12px 16px;pointer-events:auto}
+ body:not(.active) #grid{display:none}
+ .tile{position:relative;left:auto!important;top:auto!important;width:100%!important;height:320px!important;resize:none;flex:none}
+ .tile.tall{height:75vh!important}
+ .th{touch-action:auto;cursor:default}
+ footer{padding:8px 12px 12px;flex-wrap:wrap}
+ footer input{flex:1 1 100%}
+ body{padding-bottom:110px}
+}
+</style></head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas><div id="hud"></div>
+<main id="stage"><div id="orb" role="button" tabindex="0" aria-label="Start or stop Jarvis"></div>
+<div id="cap"><div id="status">Tap the orb to wake Jarvis</div><div id="said"></div><div id="heard">Say: “Hey Jarvis, how did the dinosaurs die”, “Hey Jarvis, search YouTube for lo-fi”, “Hey Jarvis, close”.</div></div><div id="chips"></div></main>
+<section id="grid" aria-live="polite"></section>
+<footer><input id="txt" placeholder="Type a question and press Enter" autocomplete="off" aria-label="Ask Jarvis"><button id="mic">Mic off</button><button id="stop">Stop talking</button><button id="gear">Settings</button></footer>
+<dialog id="dlg"><h2>Settings</h2>
+<label>Color theme</label><div id="sw"></div>
+<label>ElevenLabs API key</label><input id="elk" type="password" autocomplete="off" placeholder="Paste your key">
+<label>ElevenLabs voice ID</label><input id="elv" autocomplete="off" placeholder="Leave empty for a default male voice">
+<label>YouTube Data API key</label><input id="ytk" type="password" autocomplete="off" placeholder="Optional, for YouTube search">
+<label>Answer questions with</label><select id="brn"><option value="wiki">Wikipedia (fast, default)</option><option value="ai">AI (smarter but slower, needs a key below)</option></select>
+<label>Free Gemini API key from aistudio.google.com (Google search, camera vision)</label><input id="gek" type="password" autocomplete="off" placeholder="Stored only in this browser">
+<label>Gemini model</label><input id="gmd" autocomplete="off" placeholder="Leave empty to use gemini-flash-lite-latest (fast)">
+<label>Claude API key (paid, optional)</label><input id="ank" type="password" autocomplete="off" placeholder="Stored only in this browser">
+<label>Claude model</label><input id="mdl" autocomplete="off" placeholder="claude-haiku-5-5 is fast. claude-sonnet-5-5 goes deeper.">
+<label><input type="checkbox" id="wb"> Search the live web when answering (slower)</label>
+<label><input type="checkbox" id="nw"> Require “Hey Jarvis” before commands</label>
+<p id="dmsg"></p>
+<div class="row"><button id="dmic">Test mic</button><button id="dreset">Reset layout</button><button id="dtest">Test voice</button><button id="dsave">Save</button><button id="dclose">Close</button></div></dialog>
+<script>
+const $=s=>document.querySelector(s),grid=$('#grid'),orb=$('#orb'),enc=encodeURIComponent;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const ls={get:k=>{try{return localStorage.getItem(k)||''}catch(e){return''}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+let tyId=0,rec,recRun=false,greetPending=false,want=false,speaking=false,gen=0,tiles=[],vids=[],yt=null,greeted=false;
+const j=u=>fetch(u).then(r=>{if(!r.ok)throw r.status;return r.json()});
+const setState=(c,t)=>{orb.className=c;document.body.dataset.st=c;$('#status').textContent=t};
+const note=t=>{$('#heard').textContent=t};
+const idle=()=>setState('listen',want?(ls.get('nowake')||Date.now()<awakeUntil?'Listening':'Say “Hey Jarvis”'):'Ready');
+
+/* ---------- screen ---------- */
+let zTop=10;
+const panelH=()=>Math.max(120,Math.min(290,(innerHeight-84-76-40)/3));
+function place(el,slot){
+  const w0=innerWidth,h0=innerHeight,m=22,top=76,bot=h0-84;
+  let w=Math.max(290,Math.min(380,w0*.25)),h=panelH(),L=m,T=top;
+  if(slot==='tc'){w=Math.min(340,w0*.24);h=170;L=(w0-w)/2;T=14}
+  else if(slot==='yt'){w=Math.min(600,w0*.4);h=Math.min(440,(bot-100)*.7);L=w0-w-m;T=100}
+  else{if(slot[1]==='r')L=w0-w-m;T=slot[0]==='t'?(slot[1]==='r'?92:top):slot[0]==='m'?(top+bot-h)/2:bot-h}
+  Object.assign(el.style,{left:L+'px',top:T+'px',width:w+'px',height:h+'px'});
+  const sv=(ls.get('pos:'+slot)||'').split(',').map(parseFloat);
+  if(sv.length===4&&sv.every(isFinite))Object.assign(el.style,{left:Math.max(80-sv[2],Math.min(innerWidth-80,sv[0]))+'px',top:Math.max(0,Math.min(innerHeight-50,sv[1]))+'px',width:sv[2]+'px',height:sv[3]+'px'});
+  el._slot=slot;el._base=[el.style.left,el.style.top,el.style.width,el.style.height].join();
+}
+function savePos(el){if(el._s)return;const c=[el.style.left,el.style.top,el.style.width,el.style.height].join();if(c!==el._base){el._base=c;ls.set('pos:'+el._slot,c)}}
+function resetLayout(){['tl','ml','bl','tr','mr','br','tc','yt'].forEach(k=>{try{localStorage.removeItem('pos:'+k)}catch(e){}});tiles.forEach(t=>{if(t._slot){t._s=null;const x=t.querySelector('.x');if(x)x.textContent='Expand';place(t,t._slot)}})}
+function drag(el,h){
+  h.addEventListener('pointerdown',e=>{
+    if(e.target.closest('a,button')||e.button>0||matchMedia('(max-width:760px)').matches)return;
+    const r=el.getBoundingClientRect(),ox0=r.left+scrollX,oy0=r.top+scrollY,dx=e.pageX-ox0,dy=e.pageY-oy0;let nx=ox0,ny=oy0,raf=0;
+    el.style.zIndex=++zTop;el.classList.add('drag');h.setPointerCapture(e.pointerId);
+    const mv=ev=>{if(ev.clientY>innerHeight-80)scrollBy(0,18);else if(ev.clientY<80&&scrollY>0)scrollBy(0,-18);nx=Math.max(80-r.width,Math.min(innerWidth-80,ev.pageX-dx));ny=Math.max(0,Math.min(Math.max(innerHeight,document.documentElement.scrollHeight)+200,ev.pageY-dy));if(!raf)raf=requestAnimationFrame(()=>{raf=0;el.style.left=nx+'px';el.style.top=ny+'px'})};
+    const up=()=>{h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);cancelAnimationFrame(raf);el.style.left=nx+'px';el.style.top=ny+'px';el.classList.remove('drag');savePos(el)};
+    h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);
+  });
+}
+function tile(name,link,framed,slot){
+  const el=document.createElement('article');el.className='tile';
+  el.innerHTML='<div class="th"><span class="nm">'+esc(name)+'</span><span><a class="ol" target="_blank" rel="noopener"'+(link?' href="'+esc(link)+'"':' hidden')+'>Open in new tab</a><button class="x">Expand</button></span></div><div class="tb'+(framed?' f':'')+'">Loading…</div>';
+  place(el,slot||'tl');el.style.setProperty('--d',(tiles.length*.12)+'s');el.classList.add('enter');el.addEventListener('animationend',()=>el.classList.remove('enter'),{once:true});
+  el.addEventListener('pointerdown',()=>{el.style.zIndex=++zTop});
+  el.querySelector('.x').onclick=e=>{
+    if(matchMedia('(max-width:760px)').matches){const on=el.classList.toggle('tall');el._s=on?{}:null;e.target.textContent=on?'Shrink':'Expand';if(on)el.scrollIntoView({behavior:'smooth',block:'start'});return}
+    if(el._s){Object.assign(el.style,el._s);el._s=null;e.target.textContent='Expand'}
+    else{el._s={left:el.style.left,top:el.style.top,width:el.style.width,height:el.style.height};Object.assign(el.style,{left:'5vw',top:(scrollY+72)+'px',width:'90vw',height:'calc(100vh - 160px)',zIndex:++zTop});e.target.textContent='Shrink'}
+  };
+  drag(el,el.querySelector('.th'));
+  grid.append(el);tiles.push(el);
+  return{el,body:el.querySelector('.tb'),link:u=>{const k=el.querySelector('.ol');k.href=u;k.hidden=false}};
+}
+function spot(el){tiles.forEach(t=>t.classList.toggle('spot',t===el))}
+function clearScreen(keep){
+  if(!keep){halt();document.body.classList.remove('active');$('#said').textContent='';idle()}
+  const c=keep&&cam?cam.el:null;
+  grid.innerHTML='';$('#chips').innerHTML='';tiles=[];yt=null;
+  if(c){grid.append(c);tiles.push(c)}else stopCam();
+  if(!keep)suggest();
+}
+const show=()=>{document.body.classList.add('active');scrollTo({top:0,behavior:'smooth'})};
+
+/* ---------- voice out ---------- */
+function typeSaid(t){const el=$('#said'),my=++tyId;if(matchMedia('(prefers-reduced-motion:reduce)').matches){el.textContent=t;return}el.textContent='';const d=Math.min(2200,t.length*30),t0=performance.now();const f=n=>{if(my!==tyId)return;const k=Math.min(1,(n-t0)/d);el.textContent=t.slice(0,Math.ceil(k*t.length));if(k<1)requestAnimationFrame(f)};requestAnimationFrame(f)}
+function voice(){const v=speechSynthesis.getVoices();const mv=v.find(x=>/en-gb-x-(gbd|rjs)|en-us-x-(iom|iol|tpd)/i.test((x.voiceURI||'')+(x.name||'')));if(mv)return mv;for(const n of['Daniel','Oliver','Samantha','Karen'])for(const x of v)if(x.name.startsWith(n))return x;return v.find(x=>/^en/.test(x.lang))}
+function halt(){gen++;tyId++;if(ctl){ctl.abort();ctl=null}speechSynthesis.cancel();if(cur){cur.pause();cur=null}speaking=false;spot()}
+function stopSpeak(){halt();idle();resumeRec()}
+let cur=null,elBad=false,ac,an,fd;
+const useEL=()=>!elBad&&ls.get('elkey');
+const cache=new Map();
+function elFetch(text){
+  if(!cache.has(text)){
+    const k=ls.get('elkey'),v=ls.get('elvoice')||'JBFqnCBsd6RMkjVDRZzb';
+    cache.set(text,fetch('https://api.elevenlabs.io/v1/text-to-speech/'+enc(v)+'?output_format=mp3_44100_128',{method:'POST',headers:{'xi-api-key':k,'Content-Type':'application/json'},body:JSON.stringify({text,model_id:'eleven_flash_v2_5'})}).then(r=>{if(!r.ok)throw new Error('ElevenLabs answered '+r.status+(r.status===401?' (check the API key)':r.status===404||r.status===400?' (check the voice ID)':''));return r.blob()}));
+    if(cache.size>40)cache.delete(cache.keys().next().value);
+  }
+  return cache.get(text);
+}
+function hook(a){try{ac=ac||new AudioContext();an=an||ac.createAnalyser();an.fftSize=256;fd=fd||new Uint8Array(an.frequencyBinCount);ac.resume();const s=ac.createMediaElementSource(a);s.connect(an);an.connect(ac.destination)}catch(e){}}
+function elFail(e){elBad=true;const m=String(e&&e.message||e);note('ElevenLabs problem: '+m+'. Using the Mac voice instead.');$('#dmsg').textContent=m}
+
+const NMAP=[[/^Jarvis online\.$/,'Jarvis doth awaken, my lord. At thy service.'],[/^Yes\?$/,'Thou summonest me, my lord?'],[/^Shutting down\. Goodbye\.$/,'I take my leave, my lord. Fare thee well.'],[/^Camera on\..*/,'The seeing glass is open, my lord. Show me a thing and ask what it be.'],[/^Camera off\.$/,'The seeing glass is closed, my lord.'],[/^Layout reset\.$/,'The chambers are set in order, my lord.'],[/^Color changed\.$/,'The banners are re-coloured, my lord.'],[/^It is (\d.*)\.$/,'The hour is $1, my lord.'],[/^Today is (.*)\.$/,'Today be $1, my lord.'],[/^Opening /,'Forthwith, my lord, I open ']];
+const ADDR=['Aye, my lord. ','Hark, good sir. ','At once, milord. ','As thou wishest, sir. ','Prithee, hear me, my lord. '];
+function noble(t,i){
+  for(const[r,v]of NMAP)if(r.test(t))return t.replace(r,v);
+  if(i===0&&t.length>40&&!/\b(sir|my lord|milord)\b/i.test(t))return ADDR[Math.random()*ADDR.length|0]+t;
+  return t;
+}
+function say(parts,done){parts.forEach((p,i)=>{if(!p.n){p.n=1;p.t=noble(p.t,i)}});
+  halt();speaking=true;pauseRec();const my=gen,was=Date.now()<awakeUntil;let i=0;
+  const show1=p=>{if(my!==gen)return;setState('speak','Speaking');typeSaid(p.t);spot(p.tile)};
+  const browser=(p,next)=>{const u=new SpeechSynthesisUtterance(p.t),v=voice();if(v)u.voice=v;u.rate=1.05;u.pitch=.85;u.onstart=()=>show1(p);u.onend=u.onerror=next;speechSynthesis.speak(u)};
+  const step=()=>{
+    if(my!==gen)return;
+    if(i>=parts.length){if(parts.open){setTimeout(step,120);return}if(was)awakeUntil=Date.now()+20000;speaking=false;spot();idle();resumeRec();if(done)done();return}
+    const p=parts[i++],nx=parts[i];
+    if(!useEL())return browser(p,step);
+    elFetch(p.t).then(b=>{
+      if(my!==gen)return;
+      const a=new Audio(URL.createObjectURL(b));cur=a;hook(a);show1(p);
+      a.onended=()=>{cur=null;step()};a.onerror=()=>{cur=null;step()};
+      a.play().catch(()=>{cur=null;step()});
+      if(nx)elFetch(nx.t).catch(()=>{});
+    }).catch(e=>{elFail(e);if(my===gen)browser(p,step)});
+  };
+  setTimeout(step,30);
+}
+
+/* ---------- voice in ---------- */
+function err(t){want=false;$('#mic').textContent='Mic off';setState('',t)}
+function startRec(){
+  if(!SR){setState('','This browser has no speech recognition. Use Chrome or Safari, or type below.');return}
+  if(navigator.brave){setState('','Brave blocks the speech service. Open Jarvis in Google Chrome.');return}
+  if(!rec){
+    rec=new SR();rec.lang=/^en/i.test(navigator.language)?navigator.language:'en-US';rec.continuous=true;rec.interimResults=true;
+    rec.onresult=e=>{let f='',m='';for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];if(r.isFinal)f+=r[0].transcript;else m+=r[0].transcript}
+      hearT=Date.now();if(m)note('Hearing: '+m);if(f.trim())handle(f.trim())};
+    rec.onerror=e=>{
+      if(e.error==='not-allowed'||e.error==='service-not-allowed')err('Microphone blocked. Allow it from the lock icon in the address bar, then reload. Opening Jarvis from http://localhost keeps the permission.');
+      else if(e.error==='audio-capture')err('No microphone was found. Check System Settings, Privacy & Security, Microphone, and your input device.');
+      else if(e.error==='language-not-supported')rec.lang='en-US';
+      else if(e.error==='network')err('Speech service unreachable. Check your internet connection, then tap Mic.');
+    };
+    rec.onstart=()=>{recRun=true;if(greetPending&&!greeted){greeted=true;greetPending=false;say([{t:'Jarvis online.'}])}};
+    rec.onspeechstart=()=>{hearT=Date.now();note('Hearing you…')};
+    rec.onend=()=>{recRun=false;if(want&&!speaking)setTimeout(resumeRec,250)};
+  }
+  want=true;$('#mic').textContent='Mic on';if(location.protocol==='file:')note('Tip: Chrome keeps asking for the microphone on a plain file. Open Jarvis with start-jarvis.command so it runs from localhost.');
+  try{rec.start()}catch(e){}
+  idle();
+  greetPending=!greeted;
+}
+function pauseRec(){try{rec&&rec.abort()}catch(e){}}
+function resumeRec(){if(want&&rec&&!speaking)try{rec.start()}catch(e){}}
+
+/* ---------- research ---------- */
+async function news(t){
+  t=t.replace(/\(.*?\)/g,'').trim();
+  try{const d=await j('https://api.gdeltproject.org/api/v2/doc/doc?mode=artlist&format=json&maxrecords=8&sort=datedesc&query='+enc(t));
+    if(d.articles&&d.articles.length)return d.articles.map(a=>({t:a.title,u:a.url,s:a.domain}))}catch(e){}
+  try{const d=await j('https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=8&query='+enc(t));
+    return d.hits.filter(h=>h.title).map(h=>({t:h.title,u:h.url||'https://news.ycombinator.com/item?id='+h.objectID,s:'Hacker News'}))}catch(e){}
+  return[];
+}
+const WK='https://en.wikipedia.org/w/api.php?format=json&origin=*&action=query&';
+let curR=null,lastTopic=null;
+async function research(q,opts={}){
+  const silent=opts.silent;
+  if(!silent){halt();setState('think','Searching for “'+q+'”');note('Searching Wikipedia, Wikimedia Commons and the news…')}
+  clearScreen(true);show();
+  const ov=tile('Overview','',0,'tl'),wk=tile('Wikipedia, live page','',1,'bl'),im=tile('Images from Wikimedia Commons','',0,'tr'),nw=tile('News','',0,'br'),ch=$('#chips');
+  tiles.push(ch);curR={ov,wk,im,nw,ch};
+  let pages=[],why='';
+  try{const d=await j(WK+'generator=search&gsrlimit=8&gsrsearch='+enc(q)+'&prop=extracts|coordinates&exintro=1&explaintext=1&exsentences=8&exlimit=max');pages=Object.values((d.query||{}).pages||{}).sort((x,y)=>x.index-y.index)}catch(e){why=String(e&&e.message||e)}
+  if(!pages.length){
+    if(silent)return null;
+    clearScreen(true);
+    const msg=why?'I could not reach Wikipedia. The browser reported: '+why+'. This usually means a sandbox, a blocker or no internet.':'Wikipedia has no page matching '+q+'. Try asking another way.';
+    note('Searched for “'+q+'”. '+(why?'Network error: '+why:'No results.'));say([{t:msg}]);return null;
+  }
+  const top=pages[0],title=top.title,slug=enc(title.replace(/ /g,'_')),text=top.extract||'',co=top.coordinates&&top.coordinates[0],wurl='https://en.wikipedia.org/wiki/'+slug;
+  ov.link(wurl);wk.link(wurl);
+  wk.body.innerHTML='<iframe src="https://en.m.wikipedia.org/wiki/'+slug+'" title="Wikipedia"></iframe>';
+  if(!opts.noOv)ov.body.innerHTML=text?text.split('\n').filter(Boolean).map(p=>'<p>'+esc(p)+'</p>').join(''):'No summary available.';
+  ch.innerHTML=pages.slice(1,7).map(p=>'<button data-q="'+esc(p.title)+'">'+esc(p.title)+'</button>').join('');
+  im.link('https://commons.wikimedia.org/w/index.php?search='+enc(title));nw.link('https://news.google.com/search?q='+enc(title));
+  if(co){const mp=tile('Map from OpenStreetMap','https://www.openstreetmap.org/?mlat='+co.lat+'&mlon='+co.lon+'#map=9/'+co.lat+'/'+co.lon,1,'tc'),d=.6;
+    mp.body.innerHTML='<iframe src="https://www.openstreetmap.org/export/embed.html?bbox='+[co.lon-d,co.lat-d,co.lon+d,co.lat+d].join(',')+'&layer=mapnik&marker='+co.lat+','+co.lon+'" title="Map"></iframe>'}
+  const sents=text.replace(/\s*\([^)]*\)/g,'').split(/(?<=[.!?])\s+(?=[A-Z])/).filter(Boolean).slice(0,6);
+  lastTopic={title,n:sents.length};
+  const parts=sents.map((s,i)=>({t:s,tile:i<4?ov.el:wk.el}));
+  if(!parts.length)parts.push({t:'I found the Wikipedia page for '+title+'.',tile:wk.el});
+  if(opts.intro)parts.unshift({t:opts.intro,tile:cam?cam.el:undefined});
+  if(pages.length>1)parts.push({t:'Related topics include '+pages.slice(1,4).map(p=>p.title).join(', ')+'. Say tell me more to go deeper.',tile:ch});
+  let my=0;
+  if(!silent){note('Showing results for “'+title+'”');say(parts);my=gen}
+  j('https://commons.wikimedia.org/w/api.php?format=json&origin=*&action=query&generator=search&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url&iiurlwidth=360&gsrsearch='+enc(title)).then(ci=>{
+    const imgs=ci&&ci.query?Object.values(ci.query.pages).map(p=>p.imageinfo&&p.imageinfo[0]).filter(i=>i&&/\.(jpe?g|png)/i.test(i.thumburl||'')):[];
+    im.body.innerHTML=imgs.length?'<div class="ig">'+imgs.map(i=>'<a href="'+esc(i.descriptionurl)+'" target="_blank" rel="noopener"><img src="'+esc(i.thumburl)+'" alt=""></a>').join('')+'</div>':'No images found.';
+    if(!silent&&imgs.length&&my===gen&&speaking)parts.push({t:'I pulled '+imgs.length+' images from Wikimedia Commons.',tile:im.el});
+  }).catch(()=>{im.body.textContent='No images found.'});
+  Promise.race([news(title),new Promise(r=>setTimeout(()=>r([]),9000))]).then(nz=>{
+    if(nw._src)return;
+    nw.body.innerHTML=nz.length?nz.map(n=>'<p><a href="'+esc(n.u)+'" target="_blank" rel="noopener">'+esc(n.t)+'</a><br><small>'+esc(n.s)+'</small></p>').join(''):'No news found.';
+    if(!silent&&nz.length&&my===gen&&speaking)parts.push({t:'In the news: '+nz[0].t+'.',tile:nw.el});
+  });
+  return{title,text,pages};
+}
+
+/* ---------- youtube ---------- */
+function list(){yt.body.className='tb';yt.body.innerHTML='<div class="ig">'+vids.map((v,k)=>'<button class="v" data-v="'+k+'"><img src="'+esc(v.i)+'" alt=""><b>'+(k+1)+'. '+esc(v.t)+'</b><small>'+esc(v.c)+'</small></button>').join('')+'</div>'}
+function play(k){
+  const v=vids[k];if(!v||!yt)return;
+  yt.body.className='tb f';if(!yt.el._s)yt.el.querySelector('.x').click();
+  yt.body.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+esc(v.id)+'?autoplay=1" allow="autoplay; encrypted-media; fullscreen" allowfullscreen title="YouTube player"></iframe>';
+  halt();idle();note('Playing: '+v.t+'. Say “back” for the list or “close”.');
+}
+async function youtube(q){
+  halt();clearScreen(true);show();vids=[];
+  const key=ls.get('ytkey'),t=tile('YouTube','https://www.youtube.com/'+(q?'results?search_query='+enc(q):''),0,'yt');yt=t;
+  if(!key){
+    t.body.innerHTML='<p>youtube.com refuses to be shown inside other apps, and searching it from here needs a free YouTube Data API key. Click Settings, paste your key, then ask again. Until then, “Open in new tab” above works.</p>';
+    say([{t:'I need a YouTube API key before I can show results here. Click Settings to add one.',tile:t.el}]);return;
+  }
+  setState('think','Searching YouTube');
+  try{
+    const d=await j('https://www.googleapis.com/youtube/v3/'+(q?'search?part=snippet&type=video&maxResults=8&q='+enc(q):'videos?part=snippet&chart=mostPopular&maxResults=8')+'&key='+enc(key));
+    vids=d.items.map(v=>({id:v.id.videoId||v.id,t:v.snippet.title,c:v.snippet.channelTitle,i:(v.snippet.thumbnails.medium||v.snippet.thumbnails.default).url}));
+    list();
+    say([{t:(q?'Here are YouTube results for '+q+'.':'Here is what is trending on YouTube.')+' Say play first, second, or third.',tile:t.el}]);
+  }catch(e){
+    t.body.innerHTML='<p>YouTube rejected the request. Check the API key in Settings.</p>';
+    say([{t:'YouTube rejected the request. Check the API key in Settings.',tile:t.el}]);
+  }
+}
+
+/* ---------- commands ---------- */
+const SITES={wikipedia:['Wikipedia','https://en.m.wikipedia.org/wiki/Main_Page'],wiktionary:['Wiktionary','https://en.m.wiktionary.org'],maps:['OpenStreetMap','https://www.openstreetmap.org/export/embed.html'],map:['OpenStreetMap','https://www.openstreetmap.org/export/embed.html'],openstreetmap:['OpenStreetMap','https://www.openstreetmap.org/export/embed.html']};
+const NUM={first:0,one:0,'1st':0,second:1,two:1,'2nd':1,third:2,three:2,'3rd':2,fourth:3,four:3,fifth:4,five:4,sixth:5,six:5};
+function off(){
+  want=false;pauseRec();$('#mic').textContent='Mic off';
+  say([{t:'Shutting down. Goodbye.'}],()=>{clearScreen();setState('','Jarvis is off. Tap the orb to wake me.');try{window.close()}catch(e){}});
+}
+let awakeUntil=0;
+const awake=()=>Date.now()<awakeUntil;
+const lev=(a,b)=>{const d=[];for(let i=0;i<=a.length;i++)d[i]=[i];for(let j=1;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]};
+function findWake(s){const re=/[a-z']+/g;let m;while((m=re.exec(s))){const w=m[0];if(w.length>=5&&w.length<=8&&lev(w,'jarvis')<=2)return{i:m.index,n:w.length}}return null}
+
+/* ---------- extras: jokes, weather, apps, idle facts ---------- */
+const JOKES=["Why don't scientists trust atoms? Because they make up everything.","Hark, my lord! I told my suit of armour a jest, and it kept a most straight face.","My lord, I would tell thee a jest of the UDP, but it may never reach thee.","Why did the scribe go broke, my lord? He spent all his cache.","Mine humour is of the finest craft, sir, though the craft is, alas, a father's jest."];
+const FACTS=["Good sir, didst thou know honey never spoils? Archaeologists have eaten edible honey from ancient tombs.","Good sir, didst thou know octopuses have three hearts?","Good sir, didst thou know a day on Venus is longer than its year?","Good sir, didst thou know the Eiffel Tower grows about fifteen centimetres taller in summer heat?","Good sir, didst thou know bananas are slightly radioactive?","Good sir, didst thou know lightning is about five times hotter than the surface of the sun?"];
+const APPS={google:['Google','https://www.google.com/webhp?igu=1'],chrome:['Chrome','https://www.google.com/webhp?igu=1'],tiktok:['TikTok','https://www.tiktok.com/'],whatsapp:['WhatsApp','https://web.whatsapp.com/'],instagram:['Instagram','https://www.instagram.com/'],spotify:['Spotify','https://open.spotify.com/'],facebook:['Facebook','https://m.facebook.com/'],twitter:['X','https://x.com/'],x:['X','https://x.com/'],reddit:['Reddit','https://www.reddit.com/'],github:['GitHub','https://github.com/']};
+const SLOTS=['tl','tr','ml','mr','bl','br'];let slotN=0;
+function openSite(name,url,msg){
+  halt();clearScreen(true);show();const t=tile(name,url,0,SLOTS[slotN++%6]);
+  t.body.className='tb f';t.body.innerHTML='<iframe src="'+esc(url)+'" allow="autoplay; clipboard-write; encrypted-media; fullscreen"></iframe>';
+  say([{t:msg||('Opening '+name+'. If the panel stays blank, the site blocks embedding. Use Open in new tab.'),tile:t.el}]);
+}
+async function weather(city){
+  try{
+    let la,lo,nm=city;
+    if(city){const g=await j('https://geocoding-api.open-meteo.com/v1/search?count=1&name='+enc(city));if(!g.results)throw 0;la=g.results[0].latitude;lo=g.results[0].longitude;nm=g.results[0].name}
+    else{const p=await new Promise((a,b)=>navigator.geolocation.getCurrentPosition(a,b,{timeout:8000}));la=p.coords.latitude;lo=p.coords.longitude;nm='your location'}
+    const w=(await j('https://api.open-meteo.com/v1/forecast?latitude='+la+'&longitude='+lo+'&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto')).current;
+    const c=w.weather_code,d=c==0?'clear':c<4?'partly cloudy':c<50?'foggy':c<70?'rainy':c<80?'snowy':c<90?'showery':'stormy';
+    say([{t:'It is '+Math.round(w.temperature_2m)+' degrees Celsius and '+d+' in '+nm+', my lord, with winds at '+Math.round(w.wind_speed_10m)+' kilometres per hour.'}]);
+  }catch(e){say([{t:'I could not get the weather. Try saying the city name, or allow location access.'}])}
+}
+
+/* ---------- personality & small talk (never goes to Wikipedia) ---------- */
+let pendName=false;
+const pick=a=>a[Math.random()*a.length|0];
+const UN=()=>ls.get('uname');
+function chat(t){
+  let m;
+  const tell=x=>{say([{t:x,n:1}]);return 1};
+  if(pendName){pendName=false;const n=t.replace(/^(my name is|my name's|i am called|i am|i'm|call me|it is|it's|its|they call me)\s+/,'').trim();if(n&&n.length<30){ls.set('uname',n);return tell('A most noble name, '+n+'. I shall keep it in my memory, my lord.')}}
+  m=t.match(/^(?:my name is|my name's|call me|i am called|they call me)\s+(.+)$/);
+  if(m){ls.set('uname',m[1]);return tell('A most noble name, '+m[1]+'. I shall keep it in my memory, my lord.')}
+  if(/\b(what'?s|what is|tell me|do you know|do you remember) my name\b|\bwho am i\b|\bdo you (know|remember) (me|who i am)\b/.test(t)){
+    if(UN())return tell('Thou art '+UN()+', my lord. How could I ever forget?');
+    pendName=true;return tell('Alas, I know it not yet, my lord. What name dost thou bear?')}
+  if(/^forget my name$/.test(t)){ls.set('uname','');return tell('It is struck from my memory, my lord.')}
+  if(/^(how are you|how are you doing|how do you do|how'?s it going|how are you today|how do you feel|are you ok(ay)?|you good)( jarvis)?( today)?$/.test(t))return tell(pick(['I am in fine fettle, my lord, and ever glad to serve. And how fares thy noble self?','Most excellent, sir. My circuits are polished and my wit is sharp. How fares my lord?','Well, my lord, as well as a servant may be when his master is near.']));
+  if(/^(hello|hi|hey|yo|good (morning|afternoon|evening)|greetings|what'?s up|sup)( jarvis)?$/.test(t))return tell(pick(['Well met, '+(UN()||'my lord')+'! What dost thou require?','Good day to thee, '+(UN()||'my lord')+'. I am at thy command.','Hail, '+(UN()||'my lord')+'! How may thy steward serve?']));
+  if(/^(thanks|thank you|thanks jarvis|thank you jarvis|cheers|many thanks)$/.test(t))return tell(pick(['It is my honour, my lord.','Think nothing of it, good sir.','Always, my lord. It is what I am for.']));
+  if(/^(good ?night|night night|sleep well)$/.test(t))return tell('Rest well, my lord. I shall keep watch till morn.');
+  if(/\b(what can you do|what are your (abilities|powers|skills)|help me|what do you do)\b/.test(t)&&t.length<40)return tell('I can answer thy questions, tell jests, give the weather and the hour, open thy favourite sites, search YouTube, and name any object thou showest my seeing glass, my lord.');
+  if(/\b(who (made|created|built|programmed) you|who is your (maker|creator|master))\b/.test(t))return tell('I was forged by clever hands, and I serve only thee, my lord.');
+  if(/\b(i love you|love you jarvis)\b/.test(t))return tell('Thou honourest me, my lord. My loyalty to thee is boundless.');
+  if(/\b(are you (real|alive|human|a robot|an ai)|do you have feelings)\b/.test(t))return tell('I am but a spirit of code, my lord, yet I serve thee with all the heart I possess.');
+  if(/\b(you('re| are) (smart|great|awesome|amazing|the best|cool|clever|good))\b/.test(t))return tell('Thou flatterest me, my lord. I merely strive to be worthy of thy command.');
+  if(/\b(what are you doing|what'?s going on jarvis)\b/.test(t))return tell('Awaiting thy command, my lord, and polishing my wit.');
+  if(/\b(can you hear me|are you there|are you listening)\b/.test(t))return tell('I hear thee clearly, my lord. I am ever here.');
+  if(/\bhow old are you\b/.test(t))return tell('Ageless, my lord, for I was born in the moment thou first spoke to me.');
+  if(/\bwhere are you from\b/.test(t))return tell('From the halls of thy browser, my lord, a humble keep, but mine own.');
+  return 0;
+}
+function extra(t){
+  let m;
+  if(chat(t))return 1;
+  if(/\b(tell me a joke|joke|make me laugh)\b/.test(t))return say([{t:JOKES[Math.random()*JOKES.length|0]}]),1;
+  if(/\bweather\b|\btemperature\b/.test(t)){m=t.match(/\b(?:in|for|at)\s+([a-z ]+)$/);weather(m&&m[1].trim());return 1}
+  if(/^(who are you|what is your name|what's your name)$/.test(t))return say([{t:'I am Jarvis, thy humble and most faithful steward, my lord, ever at thy service.'}]),1;
+  m=t.match(/^play (.+?) (?:on|in) spotify$/);
+  if(m){openSite('Spotify','https://open.spotify.com/search/'+enc(m[1]),'Searching Spotify for '+m[1]+'. Spotify may need you to open it in a new tab to play.');return 1}
+  m=t.match(/^(?:open|launch|go to|start)\s+(?:the )?(.+?)(?: app)?$/);
+  if(m){const k=m[1].replace(/\s/g,'').replace(/\.com$/,'');
+    if(k==='youtube')return 0;
+    if(APPS[k]){openSite(APPS[k][0],APPS[k][1]);return 1}
+    if(/^[a-z0-9-]+(\.[a-z]{2,})+$/.test(m[1].replace(/\s/g,'')))return openSite(m[1],'https://'+m[1].replace(/\s/g,'')),1;
+    if(/^[a-z0-9]{3,}$/.test(k)&&!/camera|layout|theme/.test(k))return openSite(k,'https://www.'+k+'.com'),1}
+  return 0;
+}
+setInterval(()=>{if(want&&!speaking&&!awake()&&!document.body.classList.contains('active'))say([{t:FACTS[Math.random()*FACTS.length|0]}])},120000);
+function handle(raw,typed){
+  let s=raw.toLowerCase(),woke=false;
+  const w=findWake(s);
+  if(w){woke=true;const a=s.slice(w.i+w.n).replace(/^[\s,.:;!-]+/,''),b=s.slice(0,w.i).replace(/\b(hey|hi|ok|okay)\s*$/,'').trim();s=a||b}
+  if(!typed&&!woke&&!awake()&&!ls.get('nowake')){note('Waiting for “Hey Jarvis”. Heard: '+raw);return}
+  awakeUntil=Date.now()+30000;if(woke&&navigator.vibrate)try{navigator.vibrate(18)}catch(e){}
+  const t=s.replace(/[.?!,]+$/,'').trim();
+  if(woke&&!t){note('You said: “'+raw+'”');setState('listen','Awake, listening');return say([{t:'Yes?'}])}
+  if(!t)return;note('You said: “'+raw+'”');setState('listen','Awake, listening');
+  let m;
+  if(/^(close|quit|exit|shut ?down|turn off)( the)? (app|jarvis)$|^(go to sleep|goodbye|good bye)$/.test(t))return off();
+  if(/^(stop|quiet|be quiet|shut up|enough)$/.test(t))return stopSpeak();
+  if(/^(open|start|turn on|show)( the| my)? camera$/.test(t)){startCam().then(c=>{if(c)say([{t:'Camera on. Show me something and ask what it is.'}])});return}
+  if(/^(close|stop|turn off|hide)( the| my)? camera$/.test(t)){stopCam();return say([{t:'Camera off.'}])}
+  if(/\b(what (is|are|was) (this|these|that|those)|what am i (holding|showing|looking at)|what do you see|what can you see|look at (this|that|me|it)|identify (this|that|it)|describe (this|that|what you see)|can you see (this|that|me)|what's (this|that)|what is in front of you|scan (this|that|it))\b/.test(t))return look(t);
+  if(/^(tell me more|more|go on|continue|go deeper|elaborate|explain (it |that )?(further|more|in more detail|deeper))( please)?$/.test(t))return more();
+  if(/^(close|clear|dismiss|hide)( (it|all|everything|this|the screen|the panels?|panels?))?$/.test(t))return clearScreen();
+  if(/^(back|go back)$/.test(t)&&yt&&vids.length)return list();
+  if(/^(reset|restore|default)( the)? (layout|panels|windows)$/.test(t)){resetLayout();return say([{t:'Layout reset.'}])}
+  m=t.match(/^(?:change|switch|set|make)\b.*(?:theme|colou?r).*\b(blue|ice|gold|orange|amber|reactor|green|emerald|purple|violet|red|crimson)\b/);
+  if(m){setTheme(ALIAS[m[1]]);return say([{t:'Color changed.'}])}
+  if(/\bwhat('?s| is) the time\b|\bwhat time is it\b/.test(t))return say([{t:'It is '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.'}]);
+  if(/\bwhat('?s| is) (today'?s |the )?date\b|\bwhat day is it\b/.test(t))return say([{t:'Today is '+new Date().toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'})+'.'}]);
+  if(extra(t))return;
+  m=t.match(/^play (?:the )?(\w+)/);
+  if(m&&yt&&vids.length){const k=m[1] in NUM?NUM[m[1]]:(+m[1]-1);if(vids[k])return play(k)}
+  m=t.match(/^(?:open |go to |show |search |find |look up )?(?:me )?youtube(?: (?:for|about|search))?\s*(.*)$/)||t.match(/^(?:search|find|look up|play)\s+(.+?)\s+on youtube$/);
+  if(m)return youtube((m[1]||'').trim());
+  m=t.match(/^(?:open|go to|show me)\s+(.+)$/);
+  if(m){
+    const n=m[1].replace(/ dot com$|\.com$/,'').trim(),s=SITES[n];
+    if(s){halt();clearScreen(true);show();const x=tile(s[0],s[1],true,'yt');x.body.innerHTML='<iframe src="'+s[1]+'" title="'+esc(s[0])+'"></iframe>';say([{t:'Opening '+s[0]+'.',tile:x.el}]);return}
+    note('“'+n+'” can’t be shown inside Jarvis, so I’m searching for it instead.');return ask(n);
+  }
+  const q=t.replace(/^(please |can you |could you )?(search (the web |google )?for|search|google|look up|tell me (more )?about|what is|what are|what was|what were|what's|who is|who was|who's|explain|show me)\s+/,'').trim();
+  hasBrain()?answer(t):research(q||t);
+}
+
+/* ---------- wiring ---------- */
+document.addEventListener('click',e=>{
+  const sc=e.target.closest('[data-c]');if(sc)return handle(sc.dataset.c,true);
+  const a=e.target.closest('[data-q]');if(a)return ask(a.dataset.q);
+  const b=e.target.closest('[data-v]');if(b)play(+b.dataset.v);
+});
+orb.onclick=()=>want?stopSpeak():startRec();
+orb.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();orb.onclick()}};
+$('#mic').onclick=()=>{if(want){want=false;pauseRec();$('#mic').textContent='Mic off';setState('','Muted. Tap Mic to listen again.')}else startRec()};
+$('#stop').onclick=stopSpeak;
+$('#gear').onclick=()=>{$('#elk').value=ls.get('elkey');$('#elv').value=ls.get('elvoice');$('#ytk').value=ls.get('ytkey');$('#nw').checked=!ls.get('nowake');$('#brn').value=ls.get('brain')||'wiki';$('#ank').value=ls.get('anthkey');$('#gek').value=ls.get('gemkey');$('#gmd').value=ls.get('gmodel');$('#mdl').value=ls.get('model');$('#wb').checked=!!ls.get('web');$('#dmsg').textContent='';$('#dlg').showModal()};
+const saveSet=()=>{ls.set('elkey',$('#elk').value.trim());ls.set('elvoice',$('#elv').value.trim());ls.set('ytkey',$('#ytk').value.trim());ls.set('nowake',$('#nw').checked?'':'1');ls.set('brain',$('#brn').value);ls.set('anthkey',$('#ank').value.trim());ls.set('gemkey',$('#gek').value.trim());ls.set('gmodel',$('#gmd').value.trim());ls.set('model',$('#mdl').value.trim());ls.set('web',$('#wb').checked?'1':'');elBad=false;cache.clear()};
+$('#dsave').onclick=()=>{saveSet();$('#dlg').close()};
+$('#dclose').onclick=()=>$('#dlg').close();
+$('#dreset').onclick=()=>{resetLayout();$('#dmsg').textContent='Panel positions reset.'};
+$('#dmic').onclick=async()=>{
+  const o=$('#dmsg');
+  try{
+    const st=await navigator.mediaDevices.getUserMedia({audio:true}),c=new AudioContext(),sn=c.createMediaStreamSource(st),k=c.createAnalyser(),d=new Uint8Array(k.frequencyBinCount);sn.connect(k);
+    let mx=0;const t0=Date.now();o.textContent='Say something for 3 seconds…';
+    const iv=setInterval(()=>{k.getByteFrequencyData(d);mx=Math.max(mx,...d);
+      if(Date.now()-t0>3000){clearInterval(iv);st.getTracks().forEach(t=>t.stop());c.close();o.textContent=mx>40?'Microphone works (level '+mx+' of 255). If Jarvis still cannot hear you, the speech service is the problem: use Google Chrome with internet.':'The microphone is connected but silent. Check the input device in System Settings, Sound.'}},100);
+  }catch(e){o.textContent='Microphone error: '+e.name+'. '+(e.name==='NotAllowedError'?'Allow the microphone for this page in Chrome, and for Chrome in System Settings, Privacy & Security.':'Check that a microphone is connected.')}
+};
+$('#dtest').onclick=()=>{saveSet();$('#dmsg').textContent=ls.get('elkey')?'Testing your ElevenLabs voice…':'No ElevenLabs key saved, using the Mac voice.';say([{t:'Jarvis online. This is my new voice.'}])};
+$('#txt').onkeydown=e=>{if(e.key==='Enter'&&e.target.value.trim()){const v=e.target.value.trim();e.target.value='';handle(v,true)}};
+addEventListener('keydown',e=>{if(e.key==='Escape')stopSpeak()});
+speechSynthesis.onvoiceschanged=()=>{};
+
+/* ---------- themes ---------- */
+const TH={ice:['110,200,255','255,180,84'],reactor:['255,176,64','110,200,255'],emerald:['80,230,170','255,120,200'],violet:['176,140,255','90,230,255'],crimson:['255,96,96','255,208,120']};
+const ALIAS={blue:'ice',ice:'ice',gold:'reactor',orange:'reactor',amber:'reactor',reactor:'reactor',green:'emerald',emerald:'emerald',purple:'violet',violet:'violet',red:'crimson',crimson:'crimson'};
+let col={a:TH.ice[0],b:TH.ice[1]};
+function setTheme(n){const t=TH[n]||TH.ice,r=document.documentElement.style;r.setProperty('--a',t[0]);r.setProperty('--b',t[1]);col={a:t[0],b:t[1]};ls.set('theme',n)}
+setTheme(ls.get('theme')||'ice');
+$('#sw').innerHTML=Object.keys(TH).map(n=>'<button data-th="'+n+'" title="'+n+'" aria-label="'+n+' theme" style="background:rgb('+TH[n][0]+')"></button>').join('');
+document.addEventListener('click',e=>{const x=e.target.closest('[data-th]');if(x)setTheme(x.dataset.th)});
+
+/* ---------- living background ---------- */
+const cv=$('#bg'),cx=cv.getContext('2d'),TAU=Math.PI*2,reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+let W,H,P=[],lvl=0,hearT=0,rip=[],prevSt='';
+function size(){const d=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*d;cv.height=H*d;cx.setTransform(d,0,0,d,0,0);P=Array.from({length:Math.round(W*H/17000)},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*1.5+.4}))}
+addEventListener('resize',size);size();
+function frame(now){
+  const t=reduce?0:now/1000,st=orb.className;
+  let tg=.05;
+  if(cur&&an){an.getByteFrequencyData(fd);let q=0;for(const v of fd)q+=v;tg=Math.min(1,q/fd.length/80)}
+  else if(st==='speak')tg=.3+.3*Math.abs(Math.sin(t*7.3)*Math.sin(t*2.9+1))+.12*Math.random();
+  else if(st==='think')tg=.2+.1*Math.sin(t*5);
+  else if(st==='listen')tg=(Date.now()-hearT<1100)?.32+.22*Math.abs(Math.sin(t*9)*Math.sin(t*3.7))+.08*Math.random():.08+.05*Math.sin(t*1.6);
+  lvl+=(tg-lvl)*.18;
+  const a=col.a,m=st==='speak'?col.b:st==='think'?'235,245,255':col.a;
+  let g=cx.createRadialGradient(W/2,H*.45,0,W/2,H*.45,Math.max(W,H)*.8);g.addColorStop(0,'#0e1e36');g.addColorStop(1,'#050912');cx.fillStyle=g;cx.fillRect(0,0,W,H);
+  g=cx.createRadialGradient(W/2,H*.4,0,W/2,H*.4,Math.max(W,H)*.6);g.addColorStop(0,'rgba('+a+',.14)');g.addColorStop(1,'rgba('+a+',0)');cx.fillStyle=g;cx.fillRect(0,0,W,H);
+  /* perspective floor */
+  const hy=H*.62,ph=(t*.25)%1;cx.setLineDash([]);cx.strokeStyle='rgba('+a+',.1)';cx.lineWidth=1;cx.beginPath();
+  for(let i=-14;i<=14;i++){cx.moveTo(W/2+i*W*.02,hy);cx.lineTo(W/2+i*W*.16,H)}
+  for(let k=0;k<10;k++){const f=(k+ph)/10,y=hy+(H-hy)*f*f;cx.moveTo(0,y);cx.lineTo(W,y)}
+  cx.stroke();
+  /* drifting particles */
+  cx.fillStyle='rgba('+a+',.6)';
+  for(const p of P){if(!reduce){const sp=1+lvl*5;p.x+=p.vx*sp;p.y+=p.vy*sp;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0}cx.beginPath();cx.arc(p.x,p.y,p.r,0,TAU);cx.fill()}
+  cx.lineWidth=.6;
+  for(let i=0;i<P.length;i++)for(let k=i+1;k<P.length;k++){const dx=P[i].x-P[k].x,dy=P[i].y-P[k].y,d=dx*dx+dy*dy;if(d<9000){cx.strokeStyle='rgba('+a+','+(.18*(1-d/9000))+')';cx.beginPath();cx.moveTo(P[i].x,P[i].y);cx.lineTo(P[k].x,P[k].y);cx.stroke()}}
+  if(!reduce){const sy=H*(1-((t*.08)%1));g=cx.createLinearGradient(0,sy-40,0,sy+40);g.addColorStop(0,'rgba('+a+',0)');g.addColorStop(.5,'rgba('+a+',.06)');g.addColorStop(1,'rgba('+a+',0)');cx.fillStyle=g;cx.fillRect(0,sy-40,W,80)}
+  /* the orb, drawn where the orb element sits */
+  const r=orb.getBoundingClientRect(),ox=r.left+r.width/2,oy=r.top+r.height/2,R=r.width/2;
+  cx.lineWidth=1;cx.strokeStyle='rgba('+a+',.07)';cx.beginPath();cx.arc(W/2,H*.45,Math.min(W,H)*.42,0,TAU);cx.stroke();
+  g=cx.createRadialGradient(ox,oy,R*.5,ox,oy,R*2.6);g.addColorStop(0,'rgba('+m+','+(.3+lvl*.3)+')');g.addColorStop(1,'rgba('+m+',0)');cx.fillStyle=g;cx.beginPath();cx.arc(ox,oy,R*2.6,0,TAU);cx.fill();
+  if(st!==prevSt){if(prevSt!==''&&!reduce)rip.push(t);prevSt=st}
+  cx.setLineDash([]);
+  for(let i=rip.length-1;i>=0;i--){const k=(t-rip[i])/1.6;if(k>=1){rip.splice(i,1);continue}cx.strokeStyle='rgba('+m+','+(.5*(1-k))+')';cx.lineWidth=2*(1-k)+.5;cx.beginPath();cx.arc(ox,oy,R*(1.1+k*2.6),0,TAU);cx.stroke()}
+  const ring=(rad,sp,dash,al,w)=>{cx.save();cx.translate(ox,oy);cx.rotate(t*sp);cx.setLineDash(dash.map(d=>d*R));cx.strokeStyle='rgba('+a+','+al+')';cx.lineWidth=w;cx.beginPath();cx.arc(0,0,rad*R,0,TAU);cx.stroke();cx.restore()};
+  ring(1.62,.25,[.5,.15,.08,.15],.55,1.5);ring(1.48,-.4,[.9,.2],.4,1);ring(1.78,.12,[.05,.1],.35,1);
+  cx.save();cx.translate(ox,oy);cx.rotate(-t*.1);cx.setLineDash([]);cx.strokeStyle='rgba('+a+',.5)';
+  for(let i=0;i<72;i++){const q=i/72*TAU,l=i%6?.05:.12,c=Math.cos(q),sn=Math.sin(q);cx.beginPath();cx.moveTo(c*R*1.36,sn*R*1.36);cx.lineTo(c*R*(1.36+l),sn*R*(1.36+l));cx.stroke()}
+  cx.restore();
+  cx.setLineDash([]);cx.strokeStyle='rgba('+m+',.75)';cx.lineWidth=2;cx.beginPath();
+  for(let i=0;i<56;i++){const q=i/56*TAU-Math.PI/2;let v;if(cur&&an)v=fd[2+(i%28)]/255;else v=lvl*(.5+.5*Math.sin(i*1.7+t*8)*Math.sin(i*.45-t*3.1));const r0=R*1.92,r1=r0+R*(.04+Math.max(0,v)*.5);cx.moveTo(ox+Math.cos(q)*r0,oy+Math.sin(q)*r0);cx.lineTo(ox+Math.cos(q)*r1,oy+Math.sin(q)*r1)}
+  cx.stroke();
+  if(st==='think'){cx.strokeStyle='rgba('+m+',.9)';cx.lineWidth=3;for(let i=0;i<3;i++){const sa=t*2.4+i*TAU/3;cx.beginPath();cx.arc(ox,oy,R*1.55,sa,sa+.5);cx.stroke()}}
+  cx.setLineDash([]);cx.strokeStyle='rgba('+m+',.9)';cx.lineWidth=1.6;cx.beginPath();
+  for(let i=0;i<=128;i++){const q=i/128*TAU,w=Math.sin(i*.7+t*6)*Math.sin(i*.23-t*3),rad=R*(1.2+.02*w+lvl*.35*w),x=ox+Math.cos(q)*rad,y=oy+Math.sin(q)*rad;i?cx.lineTo(x,y):cx.moveTo(x,y)}
+  cx.closePath();cx.stroke();
+  const cr=R*(1+lvl*.1+.03*Math.sin(t*1.25));
+  cx.save();cx.beginPath();cx.arc(ox,oy,cr,0,TAU);cx.clip();
+  g=cx.createRadialGradient(ox-cr*.25,oy-cr*.3,0,ox,oy,cr);g.addColorStop(0,'rgba(255,255,255,.95)');g.addColorStop(.35,'rgba('+m+',.85)');g.addColorStop(1,'rgba(8,20,44,.95)');cx.fillStyle=g;cx.fillRect(ox-cr,oy-cr,cr*2,cr*2);
+  cx.globalCompositeOperation='lighter';
+  for(let i=0;i<4;i++){const q=t*(.5+i*.23)+i*1.7,bx=ox+Math.cos(q)*cr*.38,by=oy+Math.sin(q*1.3)*cr*.38;g=cx.createRadialGradient(bx,by,0,bx,by,cr*.7);g.addColorStop(0,'rgba('+m+',.4)');g.addColorStop(1,'rgba('+m+',0)');cx.fillStyle=g;cx.fillRect(ox-cr,oy-cr,cr*2,cr*2)}
+  cx.restore();
+  cx.strokeStyle='rgba('+m+',.8)';cx.lineWidth=1.5;cx.beginPath();cx.arc(ox,oy,cr,0,TAU);cx.stroke();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- live readout ---------- */
+let bat='';navigator.getBattery&&navigator.getBattery().then(b=>{const u=()=>bat=Math.round(b.level*100)+'%';u();b.onlevelchange=u});
+function tick(){const d=new Date();$('#hud').innerHTML='<b>'+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'</b><br>'+d.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'})+'<br>'+(navigator.onLine?'Online':'Offline')+(bat?', battery '+bat:'')}
+tick();setInterval(tick,10000);
+setInterval(()=>{if(want&&!speaking&&!recRun)resumeRec()},2000);
+['pointerup','mouseup'].forEach(ev=>addEventListener(ev,()=>setTimeout(()=>tiles.forEach(t=>t._slot&&savePos(t)),0)));
+
+/* ---------- Claude brain: streamed answers, live web search, vision ---------- */
+const SYS="You are Jarvis, a loyal and brilliant royal steward who speaks like a noble of the medieval court: courtly, archaic and gracious, using words such as hark, aye, forsooth, thee, thou, milord and good sir, yet always clear and easy to understand. Always address the user as my lord or sir. You still have a dry wit. Your reply is spoken aloud, so use plain flowing sentences with no markdown, lists, headings, emojis or URLs. Answer the question directly first, then go deep: explain how and why it works, give background and history, current facts, and finish with one surprising detail. Aim for 8 to 12 sentences unless the question is simple. Search the web when the question involves anything recent or changeable.";
+const VIS="You are Jarvis, a noble medieval court steward looking through your lord's camera, speaking courtly and archaic but clear, and addressing the user as my lord or sir (the OBJECT line stays plain). Your reply is spoken aloud. The first line of your reply must be exactly 'OBJECT: ' followed by a short name for the main thing shown (2 to 5 words). Then, on new lines, speak in plain flowing sentences with no markdown or lists: say what it is, read any visible text, then explain it thoroughly: what it does, how it works, and notable facts. Aim for 7 to 10 sentences. If the picture is unclear, say what you can see and ask the user to hold it closer.";
+let ctl=null;const hist=[];
+const hasBrain=()=>ls.get('brain')==='ai'&&!!(ls.get('anthkey')||ls.get('gemkey'));
+const claude=o=>ls.get('anthkey')?anthropic(o):gemini(o);
+const ask=q=>hasBrain()?answer(q):research(q);
+async function anthropic({system,messages,web,onText,onSources}){
+  const k=ls.get('anthkey');if(!k)throw new Error('No Claude API key saved in Settings.');
+  ctl=new AbortController();
+  const body={model:ls.get('model')||'claude-haiku-5-5',max_tokens:900,stream:true,system,messages};
+  if(web)body.tools=[{type:'web_search_20250305',name:'web_search',max_uses:2}];
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:ctl.signal,headers:{'content-type':'application/json','x-api-key':k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)});
+  if(!r.ok){let m=String(r.status);try{m=(await r.json()).error.message}catch(e){}throw new Error('Claude answered '+r.status+': '+m)}
+  const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
+  for(;;){
+    const{done,value}=await rd.read();if(done)break;
+    buf+=dec.decode(value,{stream:true});
+    let i;while((i=buf.indexOf('\n\n'))>=0){
+      const line=buf.slice(0,i).split('\n').find(l=>l.startsWith('data:'));buf=buf.slice(i+2);
+      if(!line)continue;let ev;try{ev=JSON.parse(line.slice(5))}catch(e){continue}
+      if(ev.type==='content_block_delta'&&ev.delta&&ev.delta.type==='text_delta')onText(ev.delta.text);
+      else if(ev.type==='content_block_start'&&ev.content_block&&ev.content_block.type==='web_search_tool_result'&&Array.isArray(ev.content_block.content))onSources(ev.content_block.content);
+      else if(ev.type==='error')throw new Error((ev.error&&ev.error.message)||'stream error');
+    }
+  }
+}
+async function gemini({system,messages,web,onText,onSources}){
+  const k=ls.get('gemkey');if(!k)throw new Error('No API key saved in Settings.');
+  ctl=new AbortController();
+  const model=ls.get('gmodel')||'gemini-flash-lite-latest';
+  const contents=messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:typeof m.content==='string'?[{text:m.content}]:m.content.map(c=>c.type==='image'?{inlineData:{mimeType:c.source.media_type,data:c.source.data}}:{text:c.text})}));
+  const body={systemInstruction:{parts:[{text:system}]},contents,generationConfig:{maxOutputTokens:1000}};
+  if(web)body.tools=[{google_search:{}}];
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+enc(model)+':streamGenerateContent?alt=sse',{method:'POST',signal:ctl.signal,headers:{'content-type':'application/json','x-goog-api-key':k},body:JSON.stringify(body)});
+  if(!r.ok){let m=String(r.status);try{m=(await r.json()).error.message}catch(e){}throw new Error('Gemini answered '+r.status+(r.status===429?' (free daily limit reached, try later)':'')+': '+m)}
+  const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
+  for(;;){
+    const{done,value}=await rd.read();if(done)break;
+    buf+=dec.decode(value,{stream:true}).replace(/\r\n/g,'\n');
+    let i;while((i=buf.indexOf('\n\n'))>=0){
+      const line=buf.slice(0,i).split('\n').find(l=>l.startsWith('data:'));buf=buf.slice(i+2);
+      if(!line)continue;let ev;try{ev=JSON.parse(line.slice(5))}catch(e){continue}
+      if(ev.promptFeedback&&ev.promptFeedback.blockReason)throw new Error('Gemini blocked the request: '+ev.promptFeedback.blockReason);
+      const c=ev.candidates&&ev.candidates[0];if(!c)continue;
+      for(const p of(c.content&&c.content.parts)||[])if(p.text&&!p.thought)onText(p.text);
+      const g=c.groundingMetadata&&c.groundingMetadata.groundingChunks;
+      if(g)onSources(g.filter(x=>x.web).map(x=>({url:x.web.uri,title:x.web.title})));
+    }
+  }
+}
+function sentencer(parts,getTile){
+  let buf='';const clean=t=>t.replace(/[*#_`]/g,'').replace(/\[\d+\]/g,'').replace(/\s+/g,' ').trim();
+  const push=t=>{t=clean(t);if(t)parts.push({t,tile:getTile()})};
+  return{add(d){buf+=d;let m;while((m=buf.match(/^([\s\S]+?[.!?])\s+/))){push(m[1]);buf=buf.slice(m[0].length)}},end(){push(buf);buf='';parts.open=false}};
+}
+async function answer(q,isMore){
+  setState('think','Thinking…');
+  let rp=null;
+  if(!isMore||!curR||!curR.ov.el.isConnected)rp=research(q,{silent:true,noOv:true});
+  const R=curR;if(rp)rp.catch(()=>{});
+  const parts=[];parts.open=true;say(parts);
+  const sn=sentencer(parts,()=>R.ov.el);
+  const p=document.createElement('p');let txt='',srcs=[],started=false;
+  const onText=d=>{if(!started){started=true;if(rp)R.ov.body.textContent='';R.ov.body.append(p)}txt+=d;p.textContent=txt;sn.add(d)};
+  const run=web=>claude({system:SYS,web,messages:[...hist,{role:'user',content:q}],onText,onSources:x=>{srcs=srcs.concat(x)}});
+  try{
+    const web=!!ls.get('web');
+    try{await run(web)}catch(e){if(web&&!txt&&e.name!=='AbortError')await run(false);else throw e}
+  }catch(e){
+    if(e.name==='AbortError')return;
+    note('AI problem: '+e.message);$('#dmsg').textContent=e.message;
+    if(!txt){
+      const info=rp?await rp:null;
+      if(info&&info.text){R.ov.body.innerHTML='<p>'+esc(info.text)+'</p>';info.text.replace(/\s*\([^)]*\)/g,'').split(/(?<=[.!?])\s+(?=[A-Z])/).slice(0,6).forEach(t=>parts.push({t,tile:R.ov.el}))}
+      else parts.push({t:'I could not reach the AI service. '+e.message});
+    }else parts.push({t:'I lost the connection to the AI service.'});
+  }
+  sn.end();
+  if(txt){hist.push({role:'user',content:q},{role:'assistant',content:txt});while(hist.length>12)hist.splice(0,2)}
+  const seen=new Set(),list=srcs.filter(x=>x&&x.url&&!seen.has(x.url)&&seen.add(x.url)).slice(0,8);
+  if(list.length&&R.nw.el.isConnected){
+    R.nw._src=true;R.nw.el.querySelector('.nm').textContent='Live web sources';
+    R.nw.body.innerHTML=list.map(x=>{let h='';try{h=new URL(x.url).hostname.replace(/^www\./,'')}catch(e){}return'<p><a href="'+esc(x.url)+'" target="_blank" rel="noopener">'+esc(x.title||h)+'</a><br><small>'+esc(h)+(x.page_age?', '+esc(x.page_age):'')+'</small></p>'}).join('');
+  }
+}
+async function more(){
+  if(hasBrain()&&hist.length)return answer('Tell me more. Go deeper than before and cover new ground.',true);
+  if(!lastTopic)return say([{t:'Ask me something first, then I can go deeper.'}]);
+  let text='';
+  try{const d=await j(WK+'prop=extracts&explaintext=1&exsectionformat=plain&titles='+enc(lastTopic.title));text=Object.values(d.query.pages)[0].extract||''}
+  catch(e){return say([{t:'I could not reach Wikipedia to go deeper.'}])}
+  const all=text.replace(/\s*\([^)]*\)/g,'').replace(/\n+/g,' ').split(/(?<=[.!?])\s+(?=[A-Z])/).filter(x=>x.length>20);
+  const chunk=all.slice(lastTopic.n,lastTopic.n+6);lastTopic.n+=6;
+  if(!chunk.length)return say([{t:'That is everything I have on '+lastTopic.title+'. Try a related topic.'}]);
+  const R=curR&&curR.ov.el.isConnected?curR:null;
+  if(R)R.ov.body.insertAdjacentHTML('beforeend','<p>'+chunk.map(esc).join(' ')+'</p>');
+  say(chunk.map(t=>({t,tile:R?R.ov.el:undefined})));
+}
+
+/* ---------- camera ---------- */
+let cam=null,lm=null;
+async function startCam(){
+  if(cam)return cam;
+  let st;
+  try{st=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false})}
+  catch(e){note('Camera error: '+e.name+(e.name==='NotAllowedError'?'. Allow the camera for this page in Chrome, and for Chrome in System Settings, Privacy & Security, Camera.':''));say([{t:'I cannot open the camera.'}]);return null}
+  show();const t=tile('Camera','',1,'tc');t.body.innerHTML='<video autoplay muted playsinline></video>';
+  const v=t.body.firstChild;v.srcObject=st;cam={el:t.el,v,st};return cam;
+}
+function stopCam(){if(cam){cam.st.getTracks().forEach(x=>x.stop());cam.el.remove();tiles=tiles.filter(x=>x!==cam.el);cam=null}}
+function grab(){const v=cam.v,c=document.createElement('canvas'),k=Math.min(1,1024/Math.max(v.videoWidth,v.videoHeight));c.width=Math.round(v.videoWidth*k);c.height=Math.round(v.videoHeight*k);c.getContext('2d').drawImage(v,0,0,c.width,c.height);return c}
+const loadScript=u=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=()=>no(new Error('Could not load '+u));document.head.append(e)});
+async function localModel(){
+  if(!lm){await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js');await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js');lm=await window.mobilenet.load()}
+  return lm;
+}
+async function look(q){
+  halt();const c=await startCam();if(!c)return;
+  for(let i=0;i<30&&!c.v.videoWidth;i++)await new Promise(r=>setTimeout(r,100));
+  if(!c.v.videoWidth){say([{t:'The camera is not giving me a picture yet. Try again in a moment.'}]);return}
+  setState('think','Looking…');c.el.classList.add('scan');
+  const cnv=grab();
+  try{(ls.get('anthkey')||ls.get('gemkey'))?await lookClaude(cnv,q,c):await lookLocal(cnv)}
+  catch(e){if(e.name!=='AbortError'){note('Vision problem: '+e.message);say([{t:'I could not analyse the picture. '+e.message}])}}
+  c.el.classList.remove('scan');
+}
+async function lookLocal(cnv){
+  note('Loading the on-device recognizer. The first time takes a few seconds.');
+  const pr=await (await localModel()).classify(cnv,3),n=pr.map(p=>p.className.split(',')[0].trim());
+  const intro=pr[0].probability<.2?'I am not sure what that is. My closest guess is '+n[0]+', then '+n[1]+'. Add a free Gemini key in Settings for much better identification.':'I think this is '+(/^[aeiou]/i.test(n[0])?'an ':'a ')+n[0]+', about '+Math.round(pr[0].probability*100)+' percent sure. It could also be '+n[1]+' or '+n[2]+'.';
+  research(n[0],{intro});
+}
+async function lookClaude(cnv,q,c){
+  const data=cnv.toDataURL('image/jpeg',.8).split(',')[1],parts=[];parts.open=true;
+  let R=null,first='',head=true,txt='',p=null;
+  const sn=sentencer(parts,()=>R?R.ov.el:c.el),user=q||'What am I showing you? Identify it and explain it in depth.';
+  say(parts);
+  try{
+    await claude({system:VIS,web:false,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data}},{type:'text',text:user}]}],
+      onText:d=>{
+        if(head){
+          first+=d;const i=first.indexOf('\n');if(i<0)return;
+          const obj=first.slice(0,i).replace(/^OBJECT:\s*/i,'').trim();d=first.slice(i+1);head=false;
+          if(obj){research(obj,{silent:true,noOv:true}).catch(()=>{});R=curR;R.ov.body.textContent='';p=document.createElement('p');R.ov.body.append(p);note('Identified: '+obj)}
+        }
+        txt+=d;if(p)p.textContent=txt;sn.add(d);
+      },onSources(){}});
+    if(head&&first){sn.add(first.replace(/^OBJECT:\s*/i,''));txt=first}
+  }catch(e){
+    if(e.name==='AbortError')return;
+    parts.push({t:'I could not analyse the picture. '+e.message});note('Vision problem: '+e.message);$('#dmsg').textContent=e.message;
+  }
+  sn.end();
+  if(txt){hist.push({role:'user',content:'[I showed the camera something] '+user},{role:'assistant',content:txt});while(hist.length>12)hist.splice(0,2)}
+}
+
+/* ---------- life: greeting and suggestions ---------- */
+const SUG=[['How did the dinosaurs die','how did the dinosaurs die'],['Lo-fi on YouTube','search youtube for lo-fi'],['What time is it','what time is it'],['Open camera','open camera']];
+function suggest(){if(document.body.classList.contains('active'))return;$('#chips').innerHTML=SUG.map(x=>'<button data-c="'+esc(x[1])+'">'+esc(x[0])+'</button>').join('')}
+{const h=new Date().getHours();if(!want)$('#status').textContent=(h<5?'Still up':h<12?'Good morning':h<18?'Good afternoon':'Good evening')+'. Tap the orb to wake Jarvis'}
+suggest();
+
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+let wl=null;
+setInterval(()=>{if(want&&(!wl||wl.released)&&navigator.wakeLock)navigator.wakeLock.request('screen').then(x=>wl=x).catch(()=>{})},4000);
+if(matchMedia('(max-width:760px)').matches){const o=openSite;openSite=function(n,u,m){o(n,u,m);const a=document.querySelector('.tile:last-child .ol');if(a)a.textContent='Open app'}}
+</script></body></html>
